@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shop Machine Scheduler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -11,8 +11,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
 </head>
-<body class="bg-slate-50">
+<body class="bg-slate-50 text-slate-900 antialiased">
     <div id="root"></div>
 
     <script type="text/babel" data-presets="react">
@@ -24,11 +28,34 @@
                 chevronRight: <path d="m9 18 6-6-6-6"/>,
                 plus: <path d="M5 12h14m-7-7v14"/>,
                 x: <path d="M18 6 6 18M6 6l12 12"/>,
-                clock: (<React.Fragment><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></React.Fragment>),
-                calendar: (<React.Fragment><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></React.Fragment>),
-                layers: (<React.Fragment><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></React.Fragment>),
-                alert: (<React.Fragment><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></React.Fragment>),
-                user: (<React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></React.Fragment>)
+                calendar: (
+                    <React.Fragment>
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                        <line x1="16" x2="16" y1="2" y2="6"/>
+                        <line x1="8" x2="8" y1="2" y2="6"/>
+                        <line x1="3" x2="21" y1="10" y2="10"/>
+                    </React.Fragment>
+                ),
+                layers: (
+                    <React.Fragment>
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                    </React.Fragment>
+                ),
+                user: (
+                    <React.Fragment>
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </React.Fragment>
+                ),
+                alert: (
+                    <React.Fragment>
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                        <line x1="12" x2="12" y1="9" y2="13"/>
+                        <line x1="12" x2="12.01" y1="17" y2="17"/>
+                    </React.Fragment>
+                )
             };
             return (
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -57,27 +84,14 @@
             { id: 'sl10-1', name: 'SL10 Lathe #1', category: 'Lathe' },
             { id: 'sl10-2', name: 'SL10 Lathe #2', category: 'Lathe' },
             { id: 'sl10-3', name: 'SL10 Lathe #3', category: 'Lathe' },
-            { id: 'ec300', name: 'Horizontal EC300', category: 'Mill' },
+            { id: 'ec300', name: 'Horiz EC300', category: 'Mill' },
             { id: 'edm-drill', name: 'EDM Drill', category: 'EDM' },
         ];
 
         const START_HOUR = 8;
         const END_HOUR = 18;
         const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR);
-
-        const getColorForUser = (name) => {
-            const colors = [
-                { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', accent: 'text-indigo-500' },
-                { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', accent: 'text-emerald-500' },
-                { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800', accent: 'text-amber-500' },
-                { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-800', accent: 'text-rose-500' },
-                { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-800', accent: 'text-cyan-500' }
-            ];
-            if (!name) return colors[0];
-            let hash = 0;
-            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-            return colors[Math.abs(hash) % colors.length];
-        };
+        const PIXELS_PER_HOUR = window.innerWidth < 640 ? 85 : 120;
 
         function App() {
             const [user, setUser] = useState(null);
@@ -86,16 +100,13 @@
             const [viewDate, setViewDate] = useState(new Date());
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [isLoginOpen, setIsLoginOpen] = useState(false);
+            const [isMonthViewOpen, setIsMonthViewOpen] = useState(false);
             const [selectedMachine, setSelectedMachine] = useState(MACHINES[0]);
-            const [error, setError] = useState(null);
+            const [conflict, setConflict] = useState(null);
             const [submitting, setSubmitting] = useState(false);
             const [loginData, setLoginData] = useState({ email: '', password: '' });
             
             const timelineRef = useRef(null);
-            const isDragging = useRef(false);
-            const startX = useRef(0);
-            const scrollLeft = useRef(0);
-
             const isAdmin = user && !user.isAnonymous;
 
             const [formData, setFormData] = useState({
@@ -123,105 +134,139 @@
                 }, () => setLoading(false));
             }, [user]);
 
-            const handleAdminLogin = async (e) => {
-                e.preventDefault();
-                setError(null);
+            useEffect(() => {
+                if (!isModalOpen) { setConflict(null); return; }
+                const start = new Date(`${formData.startDate}T${formData.startTime}`).getTime();
+                const end = start + (parseInt(formData.durationHours || 0) * 3600000) + (parseInt(formData.durationMinutes || 0) * 60000);
+                const found = bookings.find(b => b.machineId === selectedMachine.id && (start < b.endTime && end > b.startTime));
+                setConflict(found || null);
+            }, [formData, selectedMachine, bookings, isModalOpen]);
+
+            const deleteBooking = async (id) => {
+                if(!confirm("Delete this booking?")) return;
                 try {
-                    await firebase.auth().signInWithEmailAndPassword(loginData.email, loginData.password);
-                    setIsLoginOpen(false);
-                } catch (err) {
-                    setError("Invalid admin credentials.");
-                }
+                    await firebase.firestore().collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').doc(id).delete();
+                } catch (err) { alert("Permission denied."); }
             };
 
-            const handleBooking = async (e) => {
-                e.preventDefault();
-                if (!user || submitting) return;
-                setSubmitting(true);
-                setError(null);
-                const start = new Date(`${formData.startDate}T${formData.startTime}`);
-                const end = new Date(start.getTime() + (parseInt(formData.durationHours || 0) * 3600000) + (parseInt(formData.durationMinutes || 0) * 60000));
-                
-                if (bookings.find(b => b.machineId === selectedMachine.id && (start.getTime() < b.endTime && end.getTime() > b.startTime))) {
-                    setError("Machine is already booked for this time.");
-                    setSubmitting(false);
-                    return;
-                }
-
-                try {
-                    await firebase.firestore().collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').add({
-                        machineId: selectedMachine.id, machineName: selectedMachine.name,
-                        userName: formData.userName, projectName: formData.projectName,
-                        startTime: start.getTime(), endTime: end.getTime(),
-                        userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    setIsModalOpen(false);
-                } catch (err) { setError("Save failed. Check Firebase rules."); }
-                setSubmitting(false);
+            const changeDay = (off) => { 
+                const n = new Date(viewDate); 
+                n.setDate(n.getDate() + off); 
+                setViewDate(n); 
             };
 
-            const deleteBooking = (id) => firebase.firestore().collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').doc(id).delete();
-            const changeDay = (off) => { const n = new Date(viewDate); n.setDate(n.getDate() + off); setViewDate(n); };
+            const goToToday = () => setViewDate(new Date());
 
-            const dayBookings = useMemo(() => {
-                const s = new Date(viewDate).setHours(START_HOUR,0,0,0);
-                const e = new Date(viewDate).setHours(END_HOUR,0,0,0);
-                return bookings.filter(b => b.startTime < e && b.endTime > s);
-            }, [bookings, viewDate]);
+            const bookedDates = useMemo(() => {
+                const dates = new Set();
+                bookings.forEach(b => {
+                    const d = new Date(b.startTime);
+                    dates.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+                });
+                return dates;
+            }, [bookings]);
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">Loading...</div>;
+            const monthDays = useMemo(() => {
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const days = [];
+                for (let i = 0; i < firstDay; i++) days.push(null);
+                for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+                return days;
+            }, [viewDate]);
+
+            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400 italic">Loading Shop...</div>;
 
             return (
-                <div className="min-h-screen flex flex-col font-sans select-none overflow-hidden">
-                    <header className="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-40 shadow-sm">
-                        <div className="flex items-center space-x-3">
-                            <div className="bg-indigo-600 p-2 rounded-lg shadow-md"><Icon name="layers" className="text-white w-5 h-5"/></div>
-                            <div>
-                                <h1 className="text-lg font-bold text-slate-800">Shop Scheduler</h1>
-                                {isAdmin && <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Admin Mode</span>}
+                <div className="flex flex-col h-screen max-h-screen overflow-hidden">
+                    <header className="bg-white border-b px-3 py-3 flex justify-between items-center z-50 shadow-sm shrink-0">
+                        <div className="flex items-center space-x-2">
+                            <div className="bg-indigo-600 p-1.5 rounded-lg shadow-sm"><Icon name="layers" className="text-white w-4 h-4"/></div>
+                            <div className="hidden sm:block">
+                                <h1 className="text-sm font-bold text-slate-800">Shop Scheduler</h1>
+                                {isAdmin && <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Admin Mode</span>}
                             </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <button onClick={() => changeDay(-1)} className="p-2 border rounded-lg hover:bg-slate-50"><Icon name="chevronLeft" size={16}/></button>
-                            <input type="date" value={viewDate.toISOString().split('T')[0]} onChange={e => setViewDate(new Date(e.target.value + 'T00:00:00'))} className="border p-2 rounded-lg font-bold text-sm bg-white" />
-                            <button onClick={() => changeDay(1)} className="p-2 border rounded-lg hover:bg-slate-50"><Icon name="chevronRight" size={16}/></button>
-                            <button onClick={() => { setError(null); setIsModalOpen(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">+ Schedule</button>
-                            <button onClick={() => setIsLoginOpen(true)} className={`p-2 transition-colors ${isAdmin ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}><Icon name="user" className="w-5 h-5"/></button>
+                        
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                            <button onClick={() => setIsMonthViewOpen(!isMonthViewOpen)} title="Calendar View" className={`p-2 border rounded-lg active:bg-slate-100 ${isMonthViewOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white'}`}>
+                                <Icon name="calendar" className="w-4 h-4"/>
+                            </button>
+                            
+                            <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner">
+                                <button onClick={() => changeDay(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all active:scale-90"><Icon name="chevronLeft" className="w-3.5 h-3.5"/></button>
+                                <button onClick={goToToday} className="px-2 text-[10px] font-black uppercase tracking-tighter hover:text-indigo-600 transition-colors">Today</button>
+                                <button onClick={() => changeDay(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all active:scale-90"><Icon name="chevronRight" className="w-3.5 h-3.5"/></button>
+                            </div>
+
+                            <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white p-2 rounded-lg shadow-md active:scale-95 transition-all"><Icon name="plus" className="w-4 h-4"/></button>
+                            <button onClick={() => setIsLoginOpen(true)} className={`p-2 transition-colors ${isAdmin ? 'text-indigo-600' : 'text-slate-400'}`}><Icon name="user" className="w-5 h-5"/></button>
                         </div>
                     </header>
 
-                    <main ref={timelineRef} onMouseDown={e => { isDragging.current = true; startX.current = e.pageX - timelineRef.current.offsetLeft; scrollLeft.current = timelineRef.current.scrollLeft; }} onMouseUp={() => isDragging.current = false} onMouseLeave={() => isDragging.current = false} onMouseMove={e => { if (!isDragging.current) return; e.preventDefault(); timelineRef.current.scrollLeft = scrollLeft.current - (e.pageX - timelineRef.current.offsetLeft - startX.current) * 1.5; }} className="flex-1 overflow-auto p-6 bg-slate-50 cursor-grab active:cursor-grabbing">
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 inline-block min-w-full overflow-hidden">
-                            <div className="flex border-b bg-slate-50/50">
-                                <div className="w-48 p-4 border-r font-bold text-[10px] text-slate-400 uppercase tracking-widest">MACHINE</div>
-                                <div className="flex flex-1">
-                                    {HOURS.map(h => <div key={h} className="w-32 text-center py-4 border-r text-[10px] font-bold text-slate-400">{h > 12 ? h-12+' PM' : h === 12 ? '12 PM' : h+' AM'}</div>)}
+                    {/* Month Quick-View Overlay */}
+                    {isMonthViewOpen && (
+                        <div className="absolute top-16 left-0 right-0 z-[60] bg-white border-b shadow-xl p-4 animate-in slide-in-from-top duration-200">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-black text-sm uppercase tracking-widest text-slate-400">{viewDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}</h3>
+                                <button onClick={() => setIsMonthViewOpen(false)} className="text-slate-400 p-1"><Icon name="x" className="w-4 h-4"/></button>
+                            </div>
+                            <div className="grid grid-cols-7 gap-1">
+                                {['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[9px] font-black text-center text-slate-300 py-1">{d}</div>)}
+                                {monthDays.map((d, i) => (
+                                    <div 
+                                        key={i} 
+                                        onClick={() => d && (setViewDate(d), setIsMonthViewOpen(false))}
+                                        className={`h-10 flex flex-col items-center justify-center rounded-lg text-xs font-bold cursor-pointer relative ${!d ? '' : d.toDateString() === viewDate.toDateString() ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'hover:bg-slate-50 text-slate-600'}`}
+                                    >
+                                        {d?.getDate()}
+                                        {d && bookedDates.has(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) && (
+                                            <div className={`w-1 h-1 rounded-full absolute bottom-1.5 ${d.toDateString() === viewDate.toDateString() ? 'bg-white' : 'bg-indigo-400 animate-pulse'}`}></div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <main className="flex-1 overflow-auto relative bg-slate-50 no-scrollbar" ref={timelineRef}>
+                        <div className="inline-block min-w-full">
+                            <div className="flex sticky top-0 z-30 bg-slate-50 shadow-sm">
+                                <div className="w-24 sm:w-32 shrink-0 bg-slate-50 border-r border-b p-2 sm:p-3 text-[9px] font-black text-slate-400 uppercase tracking-widest sticky left-0 z-40">Machine</div>
+                                <div className="flex">
+                                    {HOURS.map(h => (
+                                        <div key={h} style={{width: PIXELS_PER_HOUR+'px'}} className="text-center py-2 sm:py-3 border-r border-b text-[9px] font-bold text-slate-400">
+                                            {h > 12 ? h-12+'p' : h === 12 ? '12p' : h+'a'}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+
                             {MACHINES.map(m => (
-                                <div key={m.id} className="flex border-b last:border-0 hover:bg-slate-50/30">
-                                    <div className="w-48 p-4 border-r bg-white sticky left-0 z-10">
-                                        <div className="font-bold text-sm text-slate-700">{m.name}</div>
-                                        <div className="text-[9px] text-indigo-500 font-bold uppercase">{m.category}</div>
+                                <div key={m.id} className="flex border-b border-slate-200 bg-white">
+                                    <div className="w-24 sm:w-32 shrink-0 p-2 sm:p-3 border-r bg-white sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
+                                        <div className="font-bold text-[11px] sm:text-xs text-slate-700 truncate leading-tight">{m.name}</div>
+                                        <div className="text-[8px] text-indigo-500 font-bold uppercase opacity-70 tracking-tighter">{m.category}</div>
                                     </div>
-                                    <div className="flex flex-1 relative h-16">
-                                        {HOURS.map(h => <div key={h} className="w-32 border-r border-slate-100 h-full" />)}
-                                        {dayBookings.filter(b => b.machineId === m.id).map(b => {
+                                    <div className="flex relative h-14 sm:h-16">
+                                        {HOURS.map(h => <div key={h} style={{width: PIXELS_PER_HOUR+'px'}} className="border-r border-slate-100 h-full shrink-0" />)}
+                                        {bookings.filter(b => b.machineId === m.id && new Date(b.startTime).toDateString() === viewDate.toDateString()).map(b => {
                                             const sView = new Date(viewDate).setHours(START_HOUR,0,0,0);
-                                            const left = (Math.max(sView, b.startTime) - sView) / 3600000 * 128;
-                                            const width = (Math.min(sView + 36000000, b.endTime) - Math.max(sView, b.startTime)) / 3600000 * 128;
-                                            const color = getColorForUser(b.userName);
-                                            const isOwner = user && b.userId === user.uid;
-                                            
+                                            const left = (Math.max(sView, b.startTime) - sView) / 3600000 * PIXELS_PER_HOUR;
+                                            const width = (Math.min(sView + 36000000, b.endTime) - Math.max(sView, b.startTime)) / 3600000 * PIXELS_PER_HOUR;
+                                            const colors = ['bg-indigo-50 border-indigo-200 text-indigo-700', 'bg-emerald-50 border-emerald-200 text-emerald-700', 'bg-amber-50 border-amber-200 text-amber-700', 'bg-rose-50 border-rose-200 text-rose-700'];
+                                            const colorClass = colors[b.userName.length % colors.length];
                                             return (
-                                                <div key={b.id} onMouseDown={e => e.stopPropagation()} style={{left: left+'px', width: width+'px'}} className={`absolute top-2 bottom-2 ${color.bg} border ${color.border} rounded-lg p-2 overflow-hidden shadow-sm group hover:ring-2 hover:ring-indigo-400 transition-all z-20`}>
-                                                    <div className="flex justify-between items-center">
-                                                        <span className={`text-[10px] font-bold ${color.text} truncate uppercase leading-none`}>{b.userName}</span>
-                                                        {(isOwner || isAdmin) && (
-                                                            <button onClick={() => deleteBooking(b.id)} className="opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-0.5 rounded"><Icon name="x" className="w-3 h-3"/></button>
-                                                        )}
-                                                    </div>
-                                                    <div className={`text-[9px] ${color.accent} font-bold truncate mt-0.5 opacity-80`}>{b.projectName}</div>
+                                                <div 
+                                                    key={b.id} 
+                                                    style={{left: left+'px', width: (width-2)+'px'}} 
+                                                    className={`absolute top-1.5 bottom-1.5 ${colorClass} border rounded-md p-1.5 overflow-hidden shadow-sm z-10 flex flex-col justify-center transition-transform active:scale-95 cursor-pointer`}
+                                                    onClick={() => (isAdmin || (user && b.userId === user.uid)) && deleteBooking(b.id)}
+                                                >
+                                                    <span className="text-[9px] font-black truncate uppercase leading-none block">{b.userName}</span>
+                                                    <span className="text-[8px] opacity-70 truncate font-bold">{b.projectName}</span>
                                                 </div>
                                             );
                                         })}
@@ -231,50 +276,42 @@
                         </div>
                     </main>
 
-                    {isModalOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-                            <form onSubmit={handleBooking} className="bg-white rounded-3xl p-8 w-full max-w-md space-y-5 shadow-2xl animate-in fade-in zoom-in duration-200 my-auto">
-                                <div className="flex justify-between items-center">
-                                    <h2 className="text-2xl font-bold text-slate-800">Schedule Entry</h2>
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:bg-slate-50 p-2 rounded-full"><Icon name="x" className="w-6 h-6"/></button>
+                    {/* Modals */}
+                    {isLoginOpen && (
+                        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                            <form onSubmit={async (e) => { e.preventDefault(); try { await firebase.auth().signInWithEmailAndPassword(loginData.email, loginData.password); setIsLoginOpen(false); } catch(err){alert("Login Failed");} }} className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+                                <h2 className="text-xl font-bold mb-4">Admin Login</h2>
+                                <input required type="email" placeholder="Email" className="w-full border p-3 rounded-xl mb-3" onChange={e => setLoginData({...loginData, email: e.target.value})} />
+                                <input required type="password" placeholder="Password" className="w-full border p-3 rounded-xl mb-4" onChange={e => setLoginData({...loginData, password: e.target.value})} />
+                                <div className="flex gap-2">
+                                    <button type="button" onClick={() => setIsLoginOpen(false)} className="flex-1 p-3 bg-slate-100 rounded-xl font-bold">Cancel</button>
+                                    <button type="submit" className="flex-1 p-3 bg-indigo-600 text-white rounded-xl font-bold">Login</button>
                                 </div>
-                                {error && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs font-bold border border-red-100">{error}</div>}
-                                <div className="space-y-4">
-                                    <select value={selectedMachine.id} onChange={e => setSelectedMachine(MACHINES.find(m => m.id === e.target.value))} className="w-full border-slate-200 border p-3.5 rounded-2xl font-bold bg-slate-50 outline-none">
-                                        {MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                    </select>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <input required placeholder="Name" className="w-full border-slate-200 border p-3.5 rounded-2xl bg-slate-50 font-bold" onChange={e => setFormData({...formData, userName: e.target.value})}/>
-                                        <input required placeholder="Project" className="w-full border-slate-200 border p-3.5 rounded-2xl bg-slate-50 font-bold" onChange={e => setFormData({...formData, projectName: e.target.value})}/>
-                                    </div>
-                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                        <div className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2"><Icon name="clock" className="w-4 h-4" /> Time</div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <input type="date" value={formData.startDate} className="border p-2 rounded-xl text-xs font-bold" onChange={e => setFormData({...formData, startDate: e.target.value})}/>
-                                            <input type="time" value={formData.startTime} className="border p-2 rounded-xl text-xs font-bold" onChange={e => setFormData({...formData, startTime: e.target.value})}/>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <input type="number" placeholder="Hours" min="0" className="border p-3 rounded-xl font-bold text-sm" onChange={e => setFormData({...formData, durationHours: e.target.value})}/>
-                                        <input type="number" placeholder="Mins" min="0" max="59" className="border p-3 rounded-xl font-bold text-sm" onChange={e => setFormData({...formData, durationMinutes: e.target.value})}/>
-                                    </div>
-                                </div>
-                                <button type="submit" disabled={submitting} className="w-full p-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">Save Schedule</button>
                             </form>
                         </div>
                     )}
 
-                    {isLoginOpen && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                            <form onSubmit={handleAdminLogin} className="bg-white rounded-3xl p-8 w-full max-w-sm space-y-5 shadow-2xl">
-                                <h2 className="text-xl font-bold text-slate-800">Admin Login</h2>
-                                {error && <div className="text-red-500 text-xs font-bold">{error}</div>}
-                                <input required type="email" placeholder="Email" className="w-full border p-3 rounded-xl" onChange={e => setLoginData({...loginData, email: e.target.value})}/>
-                                <input required type="password" placeholder="Password" className="w-full border p-3 rounded-xl" onChange={e => setLoginData({...loginData, password: e.target.value})}/>
-                                <div className="flex space-x-2">
-                                    <button type="button" onClick={() => setIsLoginOpen(false)} className="flex-1 p-3 bg-slate-100 rounded-xl font-bold">Cancel</button>
-                                    <button type="submit" className="flex-1 p-3 bg-slate-800 text-white rounded-xl font-bold">Login</button>
+                    {isModalOpen && (
+                        <div className="fixed inset-0 z-[100] bg-white sm:bg-slate-900/60 sm:backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+                            <form onSubmit={async (e) => { e.preventDefault(); if(submitting||conflict) return; setSubmitting(true); const start = new Date(`${formData.startDate}T${formData.startTime}`).getTime(); const end = start + (parseInt(formData.durationHours||0)*3600000) + (parseInt(formData.durationMinutes||0)*60000); await firebase.firestore().collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').add({ machineId: selectedMachine.id, machineName: selectedMachine.name, userName: formData.userName, projectName: formData.projectName, startTime: start, endTime: end, userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() }); setIsModalOpen(false); setSubmitting(false); }} className="bg-white w-full h-full sm:h-auto sm:max-w-md sm:rounded-3xl p-6 flex flex-col shadow-2xl">
+                                <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">New Booking</h2><button type="button" onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 bg-slate-100 rounded-full"><Icon name="x" className="w-5 h-5"/></button></div>
+                                {conflict && <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2"><div className="bg-rose-500 p-1 rounded-full"><Icon name="alert" className="text-white w-3 h-3"/></div><div className="text-[10px] text-rose-800 font-bold uppercase tracking-tight">Conflict: {conflict.userName} has this booked!</div></div>}
+                                <div className="space-y-4 flex-1">
+                                    <label className="block"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Machine</span><select value={selectedMachine.id} onChange={e => setSelectedMachine(MACHINES.find(m => m.id === e.target.value))} className="w-full border-slate-200 border p-3 rounded-xl font-bold bg-slate-50 text-sm">{MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Your Name</span><input required className="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50" onChange={e => setFormData({...formData, userName: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Project</span><input required className="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50" onChange={e => setFormData({...formData, projectName: e.target.value})}/></label>
+                                    </div>
+                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-2 gap-3 shadow-inner">
+                                        <label><span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest ml-1 block mb-1">Date</span><input type="date" value={formData.startDate} className="w-full border p-2 rounded-xl text-xs font-bold" onChange={e => setFormData({...formData, startDate: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest ml-1 block mb-1">Start Time</span><input type="time" value={formData.startTime} className="w-full border p-2 rounded-xl text-xs font-bold" onChange={e => setFormData({...formData, startTime: e.target.value})}/></label>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Hours</span><input type="number" min="0" value={formData.durationHours} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50" onChange={e => setFormData({...formData, durationHours: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Minutes</span><input type="number" min="0" max="59" value={formData.durationMinutes} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50" onChange={e => setFormData({...formData, durationMinutes: e.target.value})}/></label>
+                                    </div>
                                 </div>
+                                <button type="submit" disabled={submitting || !!conflict} className={`w-full p-4 rounded-2xl font-bold shadow-lg mt-6 text-white transition-all ${conflict ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>{submitting ? 'Saving...' : conflict ? 'Unavailable' : 'Confirm Schedule'}</button>
                             </form>
                         </div>
                     )}
