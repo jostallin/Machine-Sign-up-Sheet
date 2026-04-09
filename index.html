@@ -1,453 +1,266 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shop Machine Scheduler</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <!-- EmailJS for Notifications -->
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes pulse-gold {
-            0%, 100% { opacity: 1; border-color: #fbbf24; }
-            50% { opacity: 0.8; border-color: #f59e0b; }
-        }
-        .animate-priority { animation: pulse-gold 2s infinite; }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-900 antialiased">
-    <div id="root"></div>
-
-    <script type="text/babel" data-presets="react">
-        const { useState, useEffect, useMemo, useRef } = React;
-
-        // --- EMAILJS CONFIGURATION ---
-        const EMAILJS_PUBLIC_KEY = "UaIcyLl5Vk4Za-S-Z";
-        const EMAILJS_SERVICE_ID = "service_m6r30df";
-        const EMAILJS_PRIORITY_TEMPLATE_ID = "template_7bxyxmg"; // Phase 1: Priority Person
-        const EMAILJS_BLAST_TEMPLATE_ID = "template_405ocxe"; // Phase 2: Everyone else
-        
-        if (EMAILJS_PUBLIC_KEY && EMAILJS_PUBLIC_KEY !== "UaIcyLl5Vk4Za-S-Z") {
-            emailjs.init(UaIcyLl5Vk4Za-S-Z);
-        }
-
-        const Icon = ({ name, className = "w-4 h-4" }) => {
-            const icons = {
-                chevronLeft: <path d="m15 18-6-6 6-6"/>,
-                chevronRight: <path d="m9 18 6-6-6-6"/>,
-                plus: <path d="M5 12h14m-7-7v14"/>,
-                x: <path d="M18 6 6 18M6 6l12 12"/>,
+chevronRight: <path d="m9 18 6-6-6-6"/>,
+plus: <path d="M5 12h14m-7-7v14"/>,
+x: <path d="M18 6 6 18M6 6l12 12"/>,
+                calendar: (
+                    <React.Fragment>
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                        <line x1="16" x2="16" y1="2" y2="6"/>
+                        <line x1="8" x2="8" y1="2" y2="6"/>
+                        <line x1="3" x2="21" y1="10" y2="10"/>
+                    </React.Fragment>
+                ),
+                layers: (
+                    <React.Fragment>
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                    </React.Fragment>
+                ),
+                user: (
+                    <React.Fragment>
+                        <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </React.Fragment>
+                ),
+                alert: (
+                    <React.Fragment>
+                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                        <line x1="12" x2="12" y1="9" y2="13"/>
+                        <line x1="12" x2="12.01" y1="17" y2="17"/>
+                    </React.Fragment>
+                )
                 calendar: <React.Fragment><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></React.Fragment>,
                 layers: <React.Fragment><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></React.Fragment>,
                 user: <React.Fragment><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></React.Fragment>,
                 alert: <React.Fragment><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></React.Fragment>,
-                info: <React.Fragment><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></React.Fragment>,
-                mail: <React.Fragment><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></React.Fragment>,
-                clock: <React.Fragment><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></React.Fragment>,
-                zap: <React.Fragment><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></React.Fragment>
-            };
-            return (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-                    {icons[name]}
-                </svg>
-            );
-        };
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDIVQntX5zWfBM8aHTmB2orGquY-GHF5fk",
-            authDomain: "machine-sign-up.firebaseapp.com",
-            projectId: "machine-sign-up",
-            storageBucket: "machine-sign-up.firebasestorage.app",
-            messagingSenderId: "1003146473182",
+                info: <React.Fragment><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></React.Fragment>
+};
+return (
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+@@ -70,8 +47,7 @@
+projectId: "machine-sign-up",
+storageBucket: "machine-sign-up.firebasestorage.app",
+messagingSenderId: "1003146473182",
+            appId: "1:1003146473182:web:985e45380e0e4d49d9dc4f",
+            measurementId: "G-6JL0Z9LEX9"
             appId: "1:1003146473182:web:985e45380e0e4d49d9dc4f"
-        };
+};
 
-        const appId = 'machine-scheduler-v3';
-        const MACHINES = [
-            { id: 'wire-edm', name: 'Wire EDM', category: 'EDM' },
-            { id: 'ram-edm', name: 'RAM EDM', category: 'EDM' },
-            { id: 'vf1-1', name: 'VF1 CNC #1', category: 'Mill' },
-            { id: 'vf1-2', name: 'VF1 CNC #2', category: 'Mill' },
-            { id: 'vf2', name: 'VF2 CNC', category: 'Mill' },
-            { id: 'sl10-1', name: 'SL10 Lathe #1', category: 'Lathe' },
-            { id: 'sl10-2', name: 'SL10 Lathe #2', category: 'Lathe' },
-            { id: 'sl10-3', name: 'SL10 Lathe #3', category: 'Lathe' },
-            { id: 'ec300', name: 'Horiz EC300', category: 'Mill' },
-            { id: 'edm-drill', name: 'EDM Drill', category: 'EDM' },
-        ];
-
-        const START_HOUR = 8;
-        const END_HOUR = 18;
-        const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR);
-        const PIXELS_PER_HOUR = window.innerWidth < 640 ? 85 : 120;
-
-        function App() {
-            const [user, setUser] = useState(null);
-            const [bookings, setBookings] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [viewDate, setViewDate] = useState(new Date());
+const appId = 'machine-scheduler-v3';
+@@ -98,6 +74,7 @@
+const [bookings, setBookings] = useState([]);
+const [loading, setLoading] = useState(true);
+const [viewDate, setViewDate] = useState(new Date());
             const [calendarDate, setCalendarDate] = useState(new Date());
-            const [isModalOpen, setIsModalOpen] = useState(false);
-            const [waitlistModal, setWaitlistModal] = useState(null);
-            const [isLoginOpen, setIsLoginOpen] = useState(false);
-            const [isMonthViewOpen, setIsMonthViewOpen] = useState(false);
-            const [selectedMachine, setSelectedMachine] = useState(MACHINES[0]);
-            const [conflict, setConflict] = useState(null);
-            const [submitting, setSubmitting] = useState(false);
-            const [waitlistEmail, setWaitlistEmail] = useState('');
-            const [loginData, setLoginData] = useState({ email: '', password: '' });
-            
-            const timelineRef = useRef(null);
-            const isAdmin = user && !user.isAnonymous;
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [isLoginOpen, setIsLoginOpen] = useState(false);
+const [isMonthViewOpen, setIsMonthViewOpen] = useState(false);
+@@ -134,6 +111,27 @@
+}, () => setLoading(false));
+}, [user]);
 
-            const [formData, setFormData] = useState({
-                userName: '', projectName: '',
-                startDate: new Date().toISOString().split('T')[0],
-                startTime: '08:00', durationHours: '1', durationMinutes: '0'
-            });
-
-            useEffect(() => {
-                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-                const auth = firebase.auth();
-                return auth.onAuthStateChanged((u) => {
-                    if (u) { setUser(u); } 
-                    else { auth.signInAnonymously(); }
-                });
-            }, []);
-
-            useEffect(() => {
-                if (!user) return;
-                const db = firebase.firestore();
-                const bookingsRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings');
-                return bookingsRef.onSnapshot((snapshot) => {
-                    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    setBookings(data);
-                    setLoading(false);
-                }, () => setLoading(false));
-            }, [user]);
-
-            const addToWaitlist = async (e) => {
-                e.preventDefault();
-                if (!waitlistModal || !waitlistEmail) return;
-                try {
-                    const db = firebase.firestore();
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').doc(waitlistModal.id).update({
-                        waitlist: firebase.firestore.FieldValue.arrayUnion({
-                            email: waitlistEmail,
-                            addedAt: Date.now()
-                        })
-                    });
-                    setWaitlistModal(null);
-                    setWaitlistEmail('');
-                    alert("Added to waitlist!");
-                } catch (err) { alert("Error joining waitlist."); }
-            };
-
-            const sendBlast = async (booking) => {
-                if (!confirm(`Notify all ${booking.waitlist.length} remaining people that this spot is now public?`)) return;
-                
-                const waitlist = booking.waitlist || [];
-                const db = firebase.firestore();
-                
-                // Send email to everyone in the waitlist
-                for (const person of waitlist) {
-                    try {
-                        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_BLAST_TEMPLATE_ID, {
-                            to_email: person.email,
-                            machine_name: booking.machineName,
-                            slot_time: new Date(booking.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                            claim_link: window.location.href
-                        });
-                    } catch (e) { console.error("Blast email failed for", person.email); }
-                }
-
-                // Delete the reservation so it becomes a standard open slot
-                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').doc(booking.id).delete();
-            };
-
-            const deleteAndNotify = async (booking) => {
-                const waitlist = booking.waitlist || [];
-                const db = firebase.firestore();
-                const docRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').doc(booking.id);
-
-                if (waitlist.length > 0) {
-                    if (!confirm("Notify waitlist and reserve this slot for 30 mins?")) return;
-                    
-                    const priorityPerson = waitlist[0];
-                    const expiry = Date.now() + (30 * 60 * 1000);
-
-                    await docRef.update({
-                        status: 'reserved',
-                        userName: 'RESERVED',
-                        projectName: 'Waitlist Priority Window',
-                        reservedFor: priorityPerson.email,
-                        priorityExpiresAt: expiry,
-                        waitlist: waitlist.slice(1) 
-                    });
-
-                    try {
-                        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_PRIORITY_TEMPLATE_ID, {
-                            to_email: priorityPerson.email,
-                            machine_name: booking.machineName,
-                            slot_time: new Date(booking.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                            claim_link: window.location.href
-                        });
-                    } catch (e) { console.error("Email failed to send", e); }
-                } else {
-                    if (!confirm("Cancel this booking?")) return;
-                    await docRef.delete();
-                }
-            };
-
+            // Safety Warning Logic
             const safetyWarning = useMemo(() => {
                 const date = new Date(formData.startDate + 'T' + formData.startTime);
                 const hour = date.getHours();
-                const day = date.getDay();
-                if (hour < 8 || hour >= 16) return { type: 'hard', msg: 'NO INSTRUCTORS PRESENT. Approval Required.' };
-                if (day === 0 || day === 6) return { type: 'weekend', msg: 'Weekend usage requires instructor approval.' };
-                if (day >= 1 && day <= 4 && hour < 12) return { type: 'soft', msg: 'Instructor may be unavailable until Noon.' };
+                const day = date.getDay(); // 0 Sun, 6 Sat
+
+                // Hard Safety Warning (Before 8am or After 4pm)
+                if (hour < 8 || hour >= 16) {
+                    return { type: 'hard', msg: 'NO INSTRUCTORS PRESENT. Approval Required for safety reasons.' };
+                }
+                // Weekend Warning
+                if (day === 0 || day === 6) {
+                    return { type: 'weekend', msg: 'Weekend usage is rare. Please confirm with instructor.' };
+                }
+                // Soft Warning (M-Th before noon)
+                if (day >= 1 && day <= 4 && hour < 12) {
+                    return { type: 'soft', msg: 'Soft Warning: Instructor may be unavailable for help until Noon.' };
+                }
                 return null;
             }, [formData.startDate, formData.startTime]);
 
-            useEffect(() => {
-                if (!isModalOpen) { setConflict(null); return; }
-                const start = new Date(`${formData.startDate}T${formData.startTime}`).getTime();
-                const end = start + (parseInt(formData.durationHours || 0) * 3600000) + (parseInt(formData.durationMinutes || 0) * 60000);
-                
-                const found = bookings.find(b => {
-                    const overlaps = b.machineId === selectedMachine.id && (start < b.endTime && end > b.startTime);
-                    if (!overlaps) return false;
-                    if (b.status === 'reserved' && Date.now() > b.priorityExpiresAt) return false;
-                    return true;
-                });
-                setConflict(found || null);
-            }, [formData, selectedMachine, bookings, isModalOpen]);
+useEffect(() => {
+if (!isModalOpen) { setConflict(null); return; }
+const start = new Date(`${formData.startDate}T${formData.startTime}`).getTime();
+@@ -149,14 +147,6 @@
+} catch (err) { alert("Permission denied."); }
+};
 
-            const bookedDates = useMemo(() => {
-                const dates = new Set();
-                bookings.forEach(b => {
-                    const d = new Date(b.startTime);
-                    dates.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
-                });
-                return dates;
-            }, [bookings]);
+            const changeDay = (off) => { 
+                const n = new Date(viewDate); 
+                n.setDate(n.getDate() + off); 
+                setViewDate(n); 
+            };
+
+            const goToToday = () => setViewDate(new Date());
+
+const bookedDates = useMemo(() => {
+const dates = new Set();
+bookings.forEach(b => {
+@@ -166,16 +156,48 @@
+return dates;
+}, [bookings]);
 
             const changeDay = (off) => { 
                 let n = new Date(viewDate);
                 n.setDate(n.getDate() + off);
+
+                // Soft Hide Weekends Logic
+                // If it's a weekend and there are no bookings, skip it
                 const isWeekend = (d) => d.getDay() === 0 || d.getDay() === 6;
                 const hasBooking = (d) => bookedDates.has(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
-                let safety = 0;
-                while (isWeekend(n) && !hasBooking(n) && safety < 7) {
+
+                // Skip ahead/back until we find a weekday or a booked weekend
+                let safetyCounter = 0;
+                while (isWeekend(n) && !hasBooking(n) && safetyCounter < 7) {
                     n.setDate(n.getDate() + (off > 0 ? 1 : -1));
-                    safety++;
+                    safetyCounter++;
                 }
+                
                 setViewDate(n); 
                 setCalendarDate(new Date(n));
             };
 
-            const monthDays = useMemo(() => {
+            const goToToday = () => {
+                const now = new Date();
+                setViewDate(now);
+                setCalendarDate(new Date(now));
+            };
+
+const monthDays = useMemo(() => {
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
                 const year = calendarDate.getFullYear();
                 const month = calendarDate.getMonth();
-                const firstDay = new Date(year, month, 1).getDay();
-                const daysInMonth = new Date(year, month + 1, 0).getDate();
-                const days = [];
-                for (let i = 0; i < firstDay; i++) days.push(null);
-                for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
-                return days;
+const firstDay = new Date(year, month, 1).getDay();
+const daysInMonth = new Date(year, month + 1, 0).getDate();
+const days = [];
+for (let i = 0; i < firstDay; i++) days.push(null);
+for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+return days;
+            }, [viewDate]);
             }, [calendarDate]);
 
-            if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400 italic">Loading...</div>;
+            const changeCalendarMonth = (off) => {
+                const n = new Date(calendarDate);
+                n.setMonth(n.getMonth() + off);
+                setCalendarDate(n);
+            };
 
-            return (
-                <div className="flex flex-col h-screen max-h-screen overflow-hidden">
-                    <header className="bg-white border-b px-3 py-3 flex justify-between items-center z-50 shadow-sm shrink-0">
-                        <div className="flex items-center space-x-2">
-                            <div className="bg-indigo-600 p-1.5 rounded-lg shadow-sm"><Icon name="layers" className="text-white w-4 h-4"/></div>
-                            <div className="hidden sm:block">
-                                <h1 className="text-sm font-bold text-slate-800 leading-none mb-1">Shop Scheduler</h1>
+if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400 italic">Loading Shop...</div>;
+
+@@ -186,21 +208,25 @@
+<div className="bg-indigo-600 p-1.5 rounded-lg shadow-sm"><Icon name="layers" className="text-white w-4 h-4"/></div>
+<div className="hidden sm:block">
+<h1 className="text-sm font-bold text-slate-800">Shop Scheduler</h1>
                                 {isAdmin && <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Admin Mode</span>}
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-1 sm:space-x-2">
-                            <button onClick={() => setIsMonthViewOpen(!isMonthViewOpen)} className={`p-2 border rounded-lg active:bg-slate-100 ${isMonthViewOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white'}`}><Icon name="calendar" className="w-4 h-4"/></button>
-                            
+                                {isAdmin && <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Admin</span>}
+</div>
+</div>
+
+<div className="flex items-center space-x-1 sm:space-x-2">
+                            <button onClick={() => setIsMonthViewOpen(!isMonthViewOpen)} title="Calendar View" className={`p-2 border rounded-lg active:bg-slate-100 ${isMonthViewOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white'}`}>
+                            <button onClick={() => setIsMonthViewOpen(!isMonthViewOpen)} className={`p-2 border rounded-lg active:bg-slate-100 ${isMonthViewOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white'}`}>
+<Icon name="calendar" className="w-4 h-4"/>
+</button>
+
+                            <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner">
+                                <button onClick={() => changeDay(-1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all active:scale-90"><Icon name="chevronLeft" className="w-3.5 h-3.5"/></button>
+                                <button onClick={goToToday} className="px-2 text-[10px] font-black uppercase tracking-tighter hover:text-indigo-600 transition-colors">Today</button>
+                                <button onClick={() => changeDay(1)} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all active:scale-90"><Icon name="chevronRight" className="w-3.5 h-3.5"/></button>
                             <div className="flex items-center bg-slate-50 border rounded-lg overflow-hidden shadow-sm">
                                 <button onClick={() => changeDay(-1)} className="p-2 hover:bg-white transition-colors border-r"><Icon name="chevronLeft" className="w-4 h-4 text-slate-400"/></button>
                                 <div className="px-3 text-xs font-bold text-slate-700 min-w-[90px] text-center">
                                     {viewDate.toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                 </div>
                                 <button onClick={() => changeDay(1)} className="p-2 hover:bg-white transition-colors border-l"><Icon name="chevronRight" className="w-4 h-4 text-slate-400"/></button>
-                            </div>
+</div>
 
-                            <button onClick={() => { const d = new Date(); setViewDate(d); setCalendarDate(d); }} className="px-3 py-2 bg-slate-100 rounded-lg text-[10px] font-black uppercase tracking-tight border border-slate-200">Today</button>
-                            <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white p-2 rounded-lg shadow-md active:scale-95 transition-all"><Icon name="plus" className="w-4 h-4"/></button>
-                            <button onClick={() => setIsLoginOpen(true)} className={`p-2 transition-colors ${isAdmin ? 'text-indigo-600' : 'text-slate-400'}`}><Icon name="user" className="w-5 h-5"/></button>
-                        </div>
-                    </header>
+                            <button onClick={goToToday} className="px-3 py-2 bg-slate-100 rounded-lg text-[10px] font-black uppercase tracking-tight hover:bg-slate-200 transition-colors border border-slate-200">Today</button>
 
-                    {isMonthViewOpen && (
-                        <div className="absolute top-16 left-0 right-0 z-[60] bg-white border-b shadow-xl p-4 animate-in slide-in-from-top duration-200">
-                            <div className="flex justify-between items-center mb-4">
+<button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white p-2 rounded-lg shadow-md active:scale-95 transition-all"><Icon name="plus" className="w-4 h-4"/></button>
+<button onClick={() => setIsLoginOpen(true)} className={`p-2 transition-colors ${isAdmin ? 'text-indigo-600' : 'text-slate-400'}`}><Icon name="user" className="w-5 h-5"/></button>
+</div>
+@@ -210,20 +236,24 @@ <h1 className="text-sm font-bold text-slate-800">Shop Scheduler</h1>
+{isMonthViewOpen && (
+<div className="absolute top-16 left-0 right-0 z-[60] bg-white border-b shadow-xl p-4 animate-in slide-in-from-top duration-200">
+<div className="flex justify-between items-center mb-4">
+                                <h3 className="font-black text-sm uppercase tracking-widest text-slate-400">{viewDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}</h3>
                                 <div className="flex items-center space-x-3">
-                                    <button onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth()-1, 1))} className="p-1 hover:bg-slate-100 rounded"><Icon name="chevronLeft" className="w-4 h-4"/></button>
+                                    <button onClick={() => changeCalendarMonth(-1)} className="p-1 hover:bg-slate-100 rounded"><Icon name="chevronLeft" className="w-4 h-4"/></button>
                                     <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">{calendarDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}</h3>
-                                    <button onClick={() => setCalendarDate(new Date(calendarDate.getFullYear(), calendarDate.getMonth()+1, 1))} className="p-1 hover:bg-slate-100 rounded"><Icon name="chevronRight" className="w-4 h-4"/></button>
+                                    <button onClick={() => changeCalendarMonth(1)} className="p-1 hover:bg-slate-100 rounded"><Icon name="chevronRight" className="w-4 h-4"/></button>
                                 </div>
-                                <button onClick={() => setIsMonthViewOpen(false)} className="text-slate-400 p-1"><Icon name="x" className="w-4 h-4"/></button>
-                            </div>
-                            <div className="grid grid-cols-7 gap-1">
-                                {['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[9px] font-black text-center text-slate-300 py-1">{d}</div>)}
-                                {monthDays.map((d, i) => (
-                                    <div key={i} onClick={() => d && (setViewDate(d), setIsMonthViewOpen(false))} className={`h-10 flex flex-col items-center justify-center rounded-lg text-xs font-bold cursor-pointer relative ${!d ? '' : d.toDateString() === viewDate.toDateString() ? 'bg-indigo-600 text-white' : 'hover:bg-slate-50 text-slate-600'}`}>
-                                        {d?.getDate()}
-                                        {d && bookedDates.has(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) && <div className={`w-1 h-1 rounded-full absolute bottom-1.5 ${d.toDateString() === viewDate.toDateString() ? 'bg-white' : 'bg-indigo-400'}`}></div>}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <main className="flex-1 overflow-auto relative bg-slate-50 no-scrollbar" ref={timelineRef}>
-                        <div className="inline-block min-w-full">
-                            <div className="flex sticky top-0 z-30 bg-slate-50 shadow-sm">
-                                <div className="w-24 sm:w-32 shrink-0 bg-slate-50 border-r border-b p-2 sm:p-3 text-[9px] font-black text-slate-400 uppercase tracking-widest sticky left-0 z-40">Machine</div>
-                                <div className="flex">
-                                    {HOURS.map(h => <div key={h} style={{width: PIXELS_PER_HOUR+'px'}} className="text-center py-2 sm:py-3 border-r border-b text-[9px] font-bold text-slate-400">{h > 12 ? h-12+'p' : h === 12 ? '12p' : h+'a'}</div>)}
-                                </div>
-                            </div>
-
-                            {MACHINES.map(m => (
-                                <div key={m.id} className="flex border-b border-slate-200 bg-white">
-                                    <div className="w-24 sm:w-32 shrink-0 p-2 sm:p-3 border-r bg-white sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.03)]">
-                                        <div className="font-bold text-[11px] sm:text-xs text-slate-700 truncate">{m.name}</div>
-                                        <div className="text-[8px] text-indigo-500 font-bold uppercase opacity-70">{m.category}</div>
-                                    </div>
-                                    <div className="flex relative h-14 sm:h-16">
-                                        {HOURS.map(h => <div key={h} style={{width: PIXELS_PER_HOUR+'px'}} className="border-r border-slate-100 h-full shrink-0" />)}
-                                        {bookings.filter(b => b.machineId === m.id && new Date(b.startTime).toDateString() === viewDate.toDateString()).map(b => {
-                                            const sView = new Date(viewDate).setHours(START_HOUR,0,0,0);
-                                            const left = (Math.max(sView, b.startTime) - sView) / 3600000 * PIXELS_PER_HOUR;
-                                            const width = (Math.min(sView + 36000000, b.endTime) - Math.max(sView, b.startTime)) / 3600000 * PIXELS_PER_HOUR;
-                                            const isOwner = user && b.userId === user.uid;
-                                            const isReserved = b.status === 'reserved';
-                                            const isExpired = isReserved && Date.now() > b.priorityExpiresAt;
-
-                                            if (isReserved && isExpired && !isAdmin) return null;
-
-                                            return (
-                                                <div 
-                                                    key={b.id} 
-                                                    style={{left: left+'px', width: (width-2)+'px'}} 
-                                                    className={`absolute top-1.5 bottom-1.5 rounded-md p-1.5 overflow-hidden shadow-sm z-10 flex flex-col justify-center active:scale-95 transition-all cursor-pointer ${isReserved ? 'bg-amber-50 border-2 border-amber-300 border-dashed text-amber-800 animate-priority' : isOwner ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}
-                                                    onClick={() => (isAdmin || isOwner || (isReserved && isExpired)) ? deleteAndNotify(b) : setWaitlistModal(b)}
-                                                >
-                                                    <div className="flex justify-between items-center w-full">
-                                                        <span className="text-[9px] font-black truncate uppercase leading-none">{b.userName}</span>
-                                                        {isAdmin && isReserved && isExpired && (
-                                                            <button onClick={(e) => { e.stopPropagation(); sendBlast(b); }} className="bg-amber-500 text-white p-0.5 rounded shadow-sm hover:scale-110"><Icon name="zap" className="w-3 h-3"/></button>
-                                                        )}
-                                                        {(b.waitlist?.length > 0 || isReserved) && !isExpired && <Icon name={isReserved ? "clock" : "mail"} className="w-3 h-3 opacity-50"/>}
-                                                    </div>
-                                                    <span className="text-[8px] opacity-70 truncate font-bold">{isReserved ? (isExpired ? 'EXPIRED - Blast Ready' : 'Priority Window') : b.projectName}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </main>
-
-                    {/* Waitlist Modal */}
-                    {waitlistModal && (
-                        <div className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-                            <form onSubmit={addToWaitlist} className="bg-white w-full max-w-sm rounded-3xl p-8 shadow-2xl animate-in zoom-in duration-200">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h2 className="text-xl font-bold text-slate-800 leading-tight">Slot is Taken</h2>
-                                        <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-1">Smart Waitlist</p>
-                                    </div>
-                                    <button type="button" onClick={() => setWaitlistModal(null)} className="p-1 text-slate-400"><Icon name="x" className="w-6 h-6"/></button>
-                                </div>
-                                <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                                    {waitlistModal.userName} is on the {waitlistModal.machineName}. 
-                                    Enter your email to be notified immediately if they cancel.
-                                </p>
-                                <input required type="email" placeholder="your@email.com" value={waitlistEmail} onChange={e => setWaitlistEmail(e.target.value)} className="w-full border-slate-200 border p-4 rounded-2xl mb-4 bg-slate-50 font-bold text-sm outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all" />
-                                <button type="submit" className="w-full bg-indigo-600 text-white p-4 rounded-2xl font-black uppercase tracking-[0.2em] text-xs shadow-lg shadow-indigo-100 active:scale-95 transition-all">Notify Me</button>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Scheduling Modal */}
-                    {isModalOpen && (
-                        <div className="fixed inset-0 z-[100] bg-white sm:bg-slate-900/60 sm:backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
-                            <form onSubmit={async (e) => { e.preventDefault(); if(submitting||conflict) return; setSubmitting(true); const start = new Date(`${formData.startDate}T${formData.startTime}`).getTime(); const end = start + (parseInt(formData.durationHours||0)*3600000) + (parseInt(formData.durationMinutes||0)*60000); await firebase.firestore().collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').add({ machineId: selectedMachine.id, machineName: selectedMachine.name, userName: formData.userName, projectName: formData.projectName, startTime: start, endTime: end, userId: user.uid, waitlist: [], createdAt: firebase.firestore.FieldValue.serverTimestamp() }); setIsModalOpen(false); setSubmitting(false); }} className="bg-white w-full h-full sm:h-auto sm:max-w-md sm:rounded-[2.5rem] p-8 flex flex-col shadow-2xl">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-black text-slate-800">Schedule</h2>
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 bg-slate-100 rounded-full"><Icon name="x" className="w-5 h-5"/></button>
-                                </div>
+<button onClick={() => setIsMonthViewOpen(false)} className="text-slate-400 p-1"><Icon name="x" className="w-4 h-4"/></button>
+</div>
+<div className="grid grid-cols-7 gap-1">
+{['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[9px] font-black text-center text-slate-300 py-1">{d}</div>)}
+{monthDays.map((d, i) => (
+<div 
+key={i} 
+                                        onClick={() => d && (setViewDate(d), setIsMonthViewOpen(false))}
+                                        onClick={() => d && (setViewDate(d), setCalendarDate(new Date(d)), setIsMonthViewOpen(false))}
+className={`h-10 flex flex-col items-center justify-center rounded-lg text-xs font-bold cursor-pointer relative ${!d ? '' : d.toDateString() === viewDate.toDateString() ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'hover:bg-slate-50 text-slate-600'}`}
+>
+{d?.getDate()}
+{d && bookedDates.has(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) && (
+                                            <div className={`w-1 h-1 rounded-full absolute bottom-1.5 ${d.toDateString() === viewDate.toDateString() ? 'bg-white' : 'bg-indigo-400 animate-pulse'}`}></div>
+                                            <div className={`w-1 h-1 rounded-full absolute bottom-1.5 ${d.toDateString() === viewDate.toDateString() ? 'bg-white' : 'bg-indigo-400'}`}></div>
+)}
+</div>
+))}
+@@ -279,7 +309,7 @@ <h3 className="font-black text-sm uppercase tracking-widest text-slate-400">{vie
+{/* Modals */}
+{isLoginOpen && (
+<div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+                            <form onSubmit={async (e) => { e.preventDefault(); try { await firebase.auth().signInWithEmailAndPassword(loginData.email, loginData.password); setIsLoginOpen(false); } catch(err){alert("Login Failed");} }} className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+                            <form onSubmit={async (e) => { e.preventDefault(); try { await firebase.auth().signInWithEmailAndPassword(loginData.email, loginData.password); setIsLoginOpen(false); } catch(err){alert("Login Failed");} }} className="bg-white w-full max-sm rounded-3xl p-6 shadow-2xl">
+<h2 className="text-xl font-bold mb-4">Admin Login</h2>
+<input required type="email" placeholder="Email" className="w-full border p-3 rounded-xl mb-3" onChange={e => setLoginData({...loginData, email: e.target.value})} />
+<input required type="password" placeholder="Password" className="w-full border p-3 rounded-xl mb-4" onChange={e => setLoginData({...loginData, password: e.target.value})} />
+@@ -295,20 +325,36 @@ <h2 className="text-xl font-bold mb-4">Admin Login</h2>
+<div className="fixed inset-0 z-[100] bg-white sm:bg-slate-900/60 sm:backdrop-blur-sm flex items-center justify-center p-0 sm:p-4 overflow-y-auto">
+<form onSubmit={async (e) => { e.preventDefault(); if(submitting||conflict) return; setSubmitting(true); const start = new Date(`${formData.startDate}T${formData.startTime}`).getTime(); const end = start + (parseInt(formData.durationHours||0)*3600000) + (parseInt(formData.durationMinutes||0)*60000); await firebase.firestore().collection('artifacts').doc(appId).collection('public').doc('data').collection('bookings').add({ machineId: selectedMachine.id, machineName: selectedMachine.name, userName: formData.userName, projectName: formData.projectName, startTime: start, endTime: end, userId: user.uid, createdAt: firebase.firestore.FieldValue.serverTimestamp() }); setIsModalOpen(false); setSubmitting(false); }} className="bg-white w-full h-full sm:h-auto sm:max-w-md sm:rounded-3xl p-6 flex flex-col shadow-2xl">
+<div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">New Booking</h2><button type="button" onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 bg-slate-100 rounded-full"><Icon name="x" className="w-5 h-5"/></button></div>
+                                {conflict && <div className="mb-4 p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2"><div className="bg-rose-500 p-1 rounded-full"><Icon name="alert" className="text-white w-3 h-3"/></div><div className="text-[10px] text-rose-800 font-bold uppercase tracking-tight">Conflict: {conflict.userName} has this booked!</div></div>}
                                 
-                                <div className="space-y-3 mb-6">
+                                <div className="space-y-3 mb-4">
                                     {conflict && (
-                                        <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-3">
-                                            <div className="bg-rose-500 p-1 rounded-full shrink-0"><Icon name="alert" className="text-white w-3 h-3"/></div>
-                                            <div className="text-[10px] text-rose-800 font-bold uppercase tracking-tight leading-tight">
-                                                {conflict.status === 'reserved' ? 'Reserved for Priority Waitlist' : `Conflict: ${conflict.userName} has this booked!`}
-                                            </div>
+                                        <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center gap-2">
+                                            <div className="bg-rose-500 p-1 rounded-full"><Icon name="alert" className="text-white w-3 h-3"/></div>
+                                            <div className="text-[10px] text-rose-800 font-bold uppercase tracking-tight">Conflict: {conflict.userName} has this booked!</div>
                                         </div>
                                     )}
-                                    {safetyWarning && <div className={`p-3 border rounded-xl flex items-center gap-3 ${safetyWarning.type === 'hard' ? 'bg-red-50 border-red-100 text-red-800' : safetyWarning.type === 'weekend' ? 'bg-indigo-50 border-indigo-100 text-indigo-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}><div className={`${safetyWarning.type === 'hard' ? 'bg-red-500' : safetyWarning.type === 'weekend' ? 'bg-indigo-500' : 'bg-amber-500'} p-1.5 rounded-full shrink-0`}><Icon name="alert" className="text-white w-3.5 h-3.5"/></div><div className="text-[10px] font-black uppercase tracking-tight leading-tight">{safetyWarning.msg}</div></div>}
+
+                                    {safetyWarning && (
+                                        <div className={`p-3 border rounded-xl flex items-center gap-3 ${safetyWarning.type === 'hard' ? 'bg-red-50 border-red-100 text-red-800' : safetyWarning.type === 'weekend' ? 'bg-indigo-50 border-indigo-100 text-indigo-800' : 'bg-amber-50 border-amber-100 text-amber-800'}`}>
+                                            <div className={`${safetyWarning.type === 'hard' ? 'bg-red-500' : safetyWarning.type === 'weekend' ? 'bg-indigo-500' : 'bg-amber-500'} p-1.5 rounded-full`}><Icon name="alert" className="text-white w-3.5 h-3.5"/></div>
+                                            <div className="text-[10px] font-black uppercase tracking-tight leading-tight">{safetyWarning.msg}</div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="space-y-4 flex-1">
-                                    <label className="block"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Machine Asset</span><select value={selectedMachine.id} onChange={e => setSelectedMachine(MACHINES.find(m => m.id === e.target.value))} className="w-full border-slate-200 border p-3.5 rounded-2xl font-bold bg-slate-50 text-sm outline-none">{MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Your Name</span><input required className="w-full border p-3.5 rounded-2xl text-sm font-bold bg-slate-50 outline-none" onChange={e => setFormData({...formData, userName: e.target.value})}/></label>
-                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Project #</span><input required className="w-full border p-3.5 rounded-2xl text-sm font-bold bg-slate-50 outline-none" onChange={e => setFormData({...formData, projectName: e.target.value})}/></label>
-                                    </div>
-                                    <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 grid grid-cols-2 gap-4 shadow-inner">
+<div className="space-y-4 flex-1">
+                                    <label className="block"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Machine</span><select value={selectedMachine.id} onChange={e => setSelectedMachine(MACHINES.find(m => m.id === e.target.value))} className="w-full border-slate-200 border p-3 rounded-xl font-bold bg-slate-50 text-sm">{MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+                                    <label className="block"><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Machine</span><select value={selectedMachine.id} onChange={e => setSelectedMachine(MACHINES.find(m => m.id === e.target.value))} className="w-full border-slate-200 border p-3 rounded-xl font-bold bg-slate-50 text-sm outline-none">{MACHINES.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+<div className="grid grid-cols-2 gap-3">
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Your Name</span><input required className="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50" onChange={e => setFormData({...formData, userName: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Project</span><input required className="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50" onChange={e => setFormData({...formData, projectName: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Your Name</span><input required className="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50 outline-none" onChange={e => setFormData({...formData, userName: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Project</span><input required className="w-full border p-3 rounded-xl text-sm font-bold bg-slate-50 outline-none" onChange={e => setFormData({...formData, projectName: e.target.value})}/></label>
+</div>
+<div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-2 gap-3 shadow-inner">
+                                        <label><span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest ml-1 block mb-1">Date</span><input type="date" value={formData.startDate} className="w-full border p-2 rounded-xl text-xs font-bold" onChange={e => setFormData({...formData, startDate: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest ml-1 block mb-1">Start Time</span><input type="time" value={formData.startTime} className="w-full border p-2 rounded-xl text-xs font-bold" onChange={e => setFormData({...formData, startTime: e.target.value})}/></label>
                                         <label><span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest ml-1 block mb-1">Date</span><input type="date" value={formData.startDate} className="w-full border p-2 rounded-xl text-xs font-bold outline-none" onChange={e => setFormData({...formData, startDate: e.target.value})}/></label>
                                         <label><span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest ml-1 block mb-1">Start Time</span><input type="time" value={formData.startTime} className="w-full border p-2 rounded-xl text-xs font-bold outline-none" onChange={e => setFormData({...formData, startTime: e.target.value})}/></label>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
+</div>
+<div className="grid grid-cols-2 gap-3">
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Hours</span><input type="number" min="0" value={formData.durationHours} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50" onChange={e => setFormData({...formData, durationHours: e.target.value})}/></label>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Minutes</span><input type="number" min="0" max="59" value={formData.durationMinutes} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50" onChange={e => setFormData({...formData, durationMinutes: e.target.value})}/></label>
                                         <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Hours</span><input type="number" min="0" value={formData.durationHours} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50 outline-none" onChange={e => setFormData({...formData, durationHours: e.target.value})}/></label>
-                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Mins</span><input type="number" min="0" max="59" value={formData.durationMinutes} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50 outline-none" onChange={e => setFormData({...formData, durationMinutes: e.target.value})}/></label>
-                                    </div>
-                                </div>
-                                <button type="submit" disabled={submitting || !!conflict} className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] shadow-lg mt-8 text-white transition-all ${conflict ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>{submitting ? 'Scheduling...' : conflict ? 'Reserved' : 'Confirm Job'}</button>
-                            </form>
-                        </div>
-                    )}
-
-                    {/* Admin Login Modal */}
-                    {isLoginOpen && (
-                        <div className="fixed inset-0 z-[110] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-                            <form onSubmit={async (e) => { e.preventDefault(); try { await firebase.auth().signInWithEmailAndPassword(loginData.email, loginData.password); setIsLoginOpen(false); } catch(err){alert("Login Failed");} }} className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl">
-                                <h2 className="text-2xl font-black text-slate-800 mb-6">Admin Mode</h2>
-                                <input required type="email" placeholder="Instructor Email" className="w-full border-slate-200 border p-4 rounded-2xl mb-3 outline-none bg-slate-50 font-bold" onChange={e => setLoginData({...loginData, email: e.target.value})} />
-                                <input required type="password" placeholder="Password" className="w-full border-slate-200 border p-4 rounded-2xl mb-6 outline-none bg-slate-50 font-bold" onChange={e => setLoginData({...loginData, password: e.target.value})} />
-                                <div className="flex gap-3">
-                                    <button type="button" onClick={() => setIsLoginOpen(false)} className="flex-1 p-4 bg-slate-100 rounded-2xl font-black text-xs uppercase tracking-widest">Cancel</button>
-                                    <button type="submit" className="flex-1 p-4 bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all">Login</button>
-                                </div>
-                            </form>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
-</body>
-</html>
+                                        <label><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">Minutes</span><input type="number" min="0" max="59" value={formData.durationMinutes} className="w-full border p-3 rounded-xl font-bold text-sm bg-slate-50 outline-none" onChange={e => setFormData({...formData, durationMinutes: e.target.value})}/></label>
+</div>
+</div>
+<button type="submit" disabled={submitting || !!conflict} className={`w-full p-4 rounded-2xl font-bold shadow-lg mt-6 text-white transition-all ${conflict ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>{submitting ? 'Saving...' : conflict ? 'Unavailable' : 'Confirm Schedule'}</button>
